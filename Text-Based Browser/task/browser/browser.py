@@ -1,3 +1,36 @@
+import argparse
+import os
+from collections import deque
+
+browser = argparse.ArgumentParser()
+browser.add_argument('dir', nargs='?', default=None, type=str, help='A directory to store your downloaded webpages')
+args = browser.parse_args()
+
+if args.dir:
+    if not os.path.exists(args.dir):
+        os.mkdir(args.dir)
+
+
+def check_website(url, filepath):
+    website_list = ['nytimes.com', 'bloomberg.com']
+    if url in website_list:
+        return True
+    if check_file(filepath, url):
+        return 'file'
+    return False
+
+
+def check_file(file_path, url):
+    file_path += url
+    if os.path.isfile(file_path):
+        return True
+    return False
+
+
+def save_website(file_path, website_name):
+    with open((file_path), 'w') as f:
+        f.writelines(website_name)
+
 
 nytimes_com = '''
 This New Liquid Is Magnetic, and Mesmerizing
@@ -34,16 +67,41 @@ Twitter and Square Chief Executive Officer Jack Dorsey
  Tuesday, a signal of the strong ties between the Silicon Valley giants.
 '''
 
-# write your code here
+history = deque()
+forward = deque()
+websites = {'bloomberg.com': bloomberg_com, 'nytimes.com': nytimes_com}
 while True:
+
+    # This keeps the path variable from changing everytime.
+    if args.dir:
+        path = args.dir + '/'
+    else:
+        path = ""
+
+    # Main part of the program
     website = input()
-    if '.' in website:
-        website = website.replace('.', '_')
-        if website == "bloomberg_com":
-            print(bloomberg_com)
-            continue
-        if website == "nytimes_com":
-            print(nytimes_com)
-            continue
     if website == 'exit':
         exit()
+    elif website == 'back':
+        if len(history) <= 1:
+            continue
+        else:
+            forward.append(history.pop())
+            print(history[-1])
+    else:
+        answer = check_website(website, path)
+        if answer == 'file':
+            path += website
+            with open(path) as web:
+                for line in web:
+                    print(line.strip())
+            print('\r')
+            history.append(websites[website + '.com'])
+        elif answer:
+            name = website[:-4]
+            path += name
+            print(websites[website])
+            history.append(websites[website])
+            save_website(path, websites[website])
+        else:
+            print('Error: Incorrect URL\n')
