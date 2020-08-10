@@ -5,19 +5,8 @@ import requests
 from requests.exceptions import HTTPError
 import sys
 from bs4 import BeautifulSoup, SoupStrainer
+from colorama import Fore, init
 
-# Create ability to pass a directory to the command line as well as give a help screen
-browser = argparse.ArgumentParser()
-browser.add_argument('dir', nargs='?', default=None, type=str, help='A directory to store your downloaded webpages')
-args = browser.parse_args()
-
-# Creates a directory and sets a path to the directory to save websites
-if args.dir:
-    if not os.path.exists(args.dir):
-        os.mkdir(args.dir)
-    path = args.dir + '/'
-else:
-    path = ""
 
 def check_name(url):
     """
@@ -60,7 +49,7 @@ def check_file(f_path, url):
     return False
 
 
-def save_website(f_path, website_page):
+def save_website(f_path, website_page, anchor_list):
     """
     Saves a website for off-line browsing
     :param f_path: The path to the directory to save the file
@@ -69,7 +58,10 @@ def save_website(f_path, website_page):
     """
     with open(f_path, 'w') as f:
         for line in website_page:
-            f.write(line + '\n')
+            if line in anchor_list:
+                f.write(Fore.BLUE + line + '\n')
+            else:
+                f.write(line + '\n')
 
 
 def print_saved_website(f_path):
@@ -105,15 +97,25 @@ def get_website(url):
     return user_site.status_code
 
 
-history = deque()  # Browser history
-forward = deque()  # ability to go forward in Browser history, not implemented yet
-websites = {}  # dictionary of websites used for history keeping and to check files
+# Initialize Colorama
+init(autoreset=True)
 
-# sets the path to the directory to save websites
+# Create ability to pass a directory to the command line as well as give a help screen
+browser = argparse.ArgumentParser()
+browser.add_argument('dir', nargs='?', default=None, type=str, help='A directory to store your downloaded webpages')
+args = browser.parse_args()
+
+# Creates a directory and sets a path to the directory to save websites
 if args.dir:
+    if not os.path.exists(args.dir):
+        os.mkdir(args.dir)
     path = args.dir + '/'
 else:
     path = ""
+
+history = deque()  # Browser history
+forward = deque()  # ability to go forward in Browser history, not implemented yet
+websites = {}  # dictionary of websites used for history keeping and to check files
 
 # Setup a search filter for websites. Only return the following elements using 'parse_only' attribute
 elements = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 'title']
@@ -149,9 +151,13 @@ while True:
                 print(f"Error #{webpage}")
             else:
                 soup = BeautifulSoup(webpage, 'html.parser', parse_only=search_for)
-                save_website(os.path.join(path, site[0]), soup.stripped_strings)
+                link_list = [element.text for element in soup.find_all('a')]
+                save_website(os.path.join(path, site[0]), soup.stripped_strings, link_list)
                 for string in soup.stripped_strings:
-                    print(string)
+                    if string in link_list:
+                        print(Fore.BLUE + string)
+                    else:
+                        print(string)
             history.append(websites[website])
         else:
             print("Error: Incorrect URL\n")
