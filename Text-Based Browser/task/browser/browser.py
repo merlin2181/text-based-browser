@@ -4,16 +4,20 @@ from collections import deque
 import requests
 from requests.exceptions import HTTPError
 import sys
+from bs4 import BeautifulSoup, SoupStrainer
 
 # Create ability to pass a directory to the command line as well as give a help screen
 browser = argparse.ArgumentParser()
 browser.add_argument('dir', nargs='?', default=None, type=str, help='A directory to store your downloaded webpages')
 args = browser.parse_args()
 
+# Creates a directory and sets a path to the directory to save websites
 if args.dir:
     if not os.path.exists(args.dir):
         os.mkdir(args.dir)
-
+    path = args.dir + '/'
+else:
+    path = ""
 
 def check_name(url):
     """
@@ -64,7 +68,8 @@ def save_website(f_path, website_page):
     :return: none
     """
     with open(f_path, 'w') as f:
-        f.writelines(website_page)
+        for line in website_page:
+            f.write(line + '\n')
 
 
 def print_saved_website(f_path):
@@ -86,16 +91,17 @@ def get_website(url):
     :return: string "Error: Incorrect URL" if there is an error, the text of the website or
     the status code from the attempted GET if it is out of range
     """
+    if not url.startswith('https://') or not url.startswith('http://'):
+        url = os.path.join('https://', url)
     try:
-        user_site = requests.get(os.path.join('https://', url))
+        user_site = requests.get(url)
         user_site.raise_for_status()
     except HTTPError:
         return 'Error: Incorrect URL'
     except Exception:
         return 'Error: Incorrect URL'
-
     if user_site:
-        return user_site.text
+        return user_site.content
     return user_site.status_code
 
 
@@ -108,6 +114,10 @@ if args.dir:
     path = args.dir + '/'
 else:
     path = ""
+
+# Setup a search filter for websites. Only return the following elements using 'parse_only' attribute
+elements = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 'title']
+search_for = SoupStrainer(elements)
 
 while True:
     website = input()
@@ -138,8 +148,10 @@ while True:
             if type(webpage) == int:
                 print(f"Error #{webpage}")
             else:
-                save_website(os.path.join(path, site[0]), webpage)
-                print(webpage)
+                soup = BeautifulSoup(webpage, 'html.parser', parse_only=search_for)
+                save_website(os.path.join(path, site[0]), soup.stripped_strings)
+                for string in soup.stripped_strings:
+                    print(string)
             history.append(websites[website])
         else:
             print("Error: Incorrect URL\n")
